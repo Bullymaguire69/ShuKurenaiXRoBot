@@ -116,11 +116,11 @@ async def hmm(client, message):
         test = test.replace("I live in @ShuKurenaiSupport.", "I live in San Francisco, California.")
         test = test.replace("I was created by @ShuKurenaiXRoBot", "I made myself")
         test = test.replace(
-            "Hello there I am Shu Kurenai...nice to meet u",
+            "Hello there I am Bully Maguire bot...nice to meet u",
             "Hi, my friend! Do you want me to tell you a joke?")
-        test = test.replace("@ShuKurenaiXRoBot is my owner", "Have the control right.")
+        test = test.replace("@jehrilla_cockroach is my owner", "Have the control right.")
         test = test.replace(
-            "Hi, My name is Shu Kurenai Nice to meet you.",
+            "Hi, My name is Bully Maguire bot Nice to meet you.",
             "Hi, my friend, what can I do for you today?")
         response = await lunaQuery(
             test, message.from_user.id if message.from_user else 0
@@ -129,11 +129,11 @@ async def hmm(client, message):
         response = response.replace("aco", "Shu")
         response = response.replace("Luna", "Shu")
         response = response.replace("luna", "Shu")
-        response = response.replace("I'm a Christian", "My god is @ShuKurenaiXRoBot")
+        response = response.replace("I'm a Christian", "My god is @jehrilla_cockroach")
         response = response.replace("9", "16")
-        response = response.replace("I'm married to my job.", "I'm married with @ShuKurenaiXRoBot")
-        response = response.replace("I'm single.", "My husband is @ShuKurenaiXRoBot")
-        response = response.replace("ShuKurenaiXRoBot.ai", "@ShuKurenaiSupport")
+        response = response.replace("I'm married to my job.", "I'm married with @jehrilla_cockroach")
+        response = response.replace("I'm single.", "My husband is @jehrilla_cockroach")
+        response = response.replace("ShuKurenaiXRoBot.ai", "jehrilla_cockroach")
         response = response.replace("I live in San Francisco, California.", "I live in @ShuKurenaiXRoBot.")
         response = response.replace("I made myself", "I was Created by @ShuKurenaiXRoBot")
         response = response.replace(
