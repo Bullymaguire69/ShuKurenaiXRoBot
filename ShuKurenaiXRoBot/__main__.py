@@ -93,7 +93,7 @@ PM_START_TEXT = """
 buttons = [
     [
         InlineKeyboardButton(
-            text="➗ Add Me To Your Group ➗", url="t.me/bullyxguardianbot?startgroup=new"),
+            text="➗ Add Bully To Your Group ➗", url="t.me/bullyxguardianbot?startgroup=new"),
     ],
     [
         InlineKeyboardButton(
