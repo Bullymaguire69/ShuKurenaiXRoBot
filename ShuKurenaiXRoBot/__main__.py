@@ -82,7 +82,7 @@ def get_readable_time(seconds: int) -> str:
 
 PM_START_TEXT = """
 *Hello {} !*
-✪ I'm an Beyblade theme management bot [🔥](http://telegra.ph/file/3cd1f5776c3ea08f609f4.jpg) 
+✪ I'm an Anime theme management bot [🔥](https://telegra.ph/file/3bfe5272b7d03daf7fbf3.jpg) 
 ────────────────────────
 × *Uptime:* `{}`
 × `{}` *users, across* `{}` *chats.*
@@ -93,7 +93,7 @@ PM_START_TEXT = """
 buttons = [
     [
         InlineKeyboardButton(
-            text="➗ Add Shu Kurenai To Your Group ➗", url="t.me/ShuKurenaiXRoBot?startgroup=new"),
+            text="➗ Add Shu Kurenai To Your Group ➗", url="t.me/bullyxguardianbot?startgroup=new"),
     ],
     [
         InlineKeyboardButton(
@@ -120,8 +120,8 @@ Click on the button bellow to get description about specifics command[.](http://
 
 HELP_MSG = "Click the button below to get help manu in your pm."
 DONATE_STRING = """Contact to **@shukurenai007bot**"""
-HELP_IMG = "http://telegra.ph/file/2861eda5afba02bf04254.jpg"
-GROUP_IMG = "http://telegra.ph/file/0adf9e97735ba8a420973.jpg"
+HELP_IMG = "https://telegra.ph/file/3bfe5272b7d03daf7fbf3.jpg"
+GROUP_IMG = "https://telegra.ph/file/3bfe5272b7d03daf7fbf3.jpg"
 
 
 
