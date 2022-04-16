@@ -1,19 +1,83 @@
+"""
+MIT License
 
+Copyright (c) 2021 TheHamkerCat
 
-import emoji
-import re
-import aiohttp
-from googletrans import Translator as google_translator
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+"""
+from asyncio import gather, sleep
+
 from pyrogram import filters
-from aiohttp import ClientSession
-from ShuKurenaiXRoBot import BOT_USERNAME as bu
-from ShuKurenaiXRoBot import BOT_ID, pbot, arq
-from ShuKurenaiXRoBot.ex_plugins.chatbot import add_chat, get_session, remove_chat
-from ShuKurenaiXRoBot.utils.pluginhelper import admins_only, edit_or_reply
+from pyrogram.types import Message
 
-url = "https://acobot-brainshop-ai-v1.p.rapidapi.com/get"
+from wbb import (
+    BOT_ID,
+    SUDOERS,
+    USERBOT_ID,
+    USERBOT_PREFIX,
+    USERBOT_USERNAME,
+    app,
+    app2,
+    arq,
+    eor,
+)
+from wbb.core.decorators.errors import capture_err
+from wbb.utils.filter_groups import chatbot_group
 
-translator = google_translator()
+__MODULE__ = "ChatBot"
+__HELP__ = """
+/chatbot [ENABLE|DISABLE] To Enable Or Disable ChatBot In Your Chat.
+
+There's one module of this available for userbot also
+check userbot module help."""
+
+active_chats_bot = []
+active_chats_ubot = []
+
+
+async def chat_bot_toggle(db, message: Message):
+    status = message.text.split(None, 1)[1].lower()
+    chat_id = message.chat.id
+    if status == "enable":
+        if chat_id not in db:
+            db.append(chat_id)
+            text = "Chatbot Enabled!"
+            return await eor(message, text=text)
+        await eor(message, text="ChatBot Is Already Enabled.")
+    elif status == "disable":
+        if chat_id in db:
+            db.remove(chat_id)
+            return await eor(message, text="Chatbot Disabled!")
+        await eor(message, text="ChatBot Is Already Disabled.")
+    else:
+        await eor(message, text="**Usage:**\n/chatbot [ENABLE|DISABLE]")
+
+
+# Enabled | Disable Chatbot
+
+
+@app.on_message(filters.command("chatbot") & ~filters.edited)
+@capture_err
+async def chatbot_status(_, message: Message):
+    if len(message.command) != 2:
+        return await eor(message, text="**Usage:**\n/chatbot [ENABLE|DISABLE]")
+    await chat_bot_toggle(active_chats_bot, message)
 
 
 async def lunaQuery(query: str, user_id: int):
@@ -21,423 +85,82 @@ async def lunaQuery(query: str, user_id: int):
     return luna.result
 
 
-def extract_emojis(s):
-    return "".join(c for c in s if c in emoji.UNICODE_EMOJI)
-
-
-async def fetch(url):
-    try:
-        async with aiohttp.Timeout(10.0):
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url) as resp:
-                    try:
-                        data = await resp.json()
-                    except:
-                        data = await resp.text()
-            return data
-    except:
-        print("AI response Timeout")
-        return
-
-
-ewe_chats = []
-en_chats = []
-
-
-@pbot.on_message(filters.command(["chatbot", f"chatbot@{bu}"]) & ~filters.edited & ~filters.bot & ~filters.private)
-@admins_only
-async def hmm(_, message):
-    global ewe_chats
-    if len(message.command) != 2:
-        await message.reply_text("I only recognize /chatbot on and /chatbot off only")
-        message.continue_propagation()
-    status = message.text.split(None, 1)[1]
+async def type_and_send(message: Message):
     chat_id = message.chat.id
-    if status == "ON" or status == "on" or status == "On":
-        lel = await edit_or_reply(message, "`Processing...`")
-        lol = add_chat(int(message.chat.id))
-        if not lol:
-            await lel.edit("ShuKurenaiXRoBot AI Already Activated In This Chat")
-            return
-        await lel.edit(f"ShuKurenaiXRoBot AI Actived by {message.from_user.mention()} for users in {message.chat.title}")
-
-    elif status == "OFF" or status == "off" or status == "Off":
-        lel = await edit_or_reply(message, "`Processing...`")
-        Escobar = remove_chat(int(message.chat.id))
-        if not Escobar:
-            await lel.edit("ShuKurenaiXRoBot AI Was Not Activated In This Chat")
-            return
-        await lel.edit(f"ShuKurenaiXRoBot AI Deactivated by {message.from_user.mention()} for users in {message.chat.title}")
-
-    elif status == "EN" or status == "en" or status == "english":
-        if not chat_id in en_chats:
-            en_chats.append(chat_id)
-            await message.reply_text(f"English AI chat Enabled by {message.from_user.mention()}")
-            return
-        await message.reply_text(f"English AI Chat Disabled by {message.from_user.mention()}")
-        message.continue_propagation()
-    else:
-        await message.reply_text("I only recognize `/chatbot on` and `chatbot off` only")
+    user_id = message.from_user.id if message.from_user else 0
+    query = message.text.strip()
+    await message._client.send_chat_action(chat_id, "typing")
+    response, _ = await gather(lunaQuery(query, user_id), sleep(3))
+    await message.reply_text(response)
+    await message._client.send_chat_action(chat_id, "cancel")
 
 
-@pbot.on_message(
+@app.on_message(
     filters.text
     & filters.reply
     & ~filters.bot
-    & ~filters.edited
     & ~filters.via_bot
-    & ~filters.forwarded,
-    group=2,
+    & ~filters.forwarded
+    & ~filters.edited,
+    group=chatbot_group,
 )
-async def hmm(client, message):
-    if not get_session(int(message.chat.id)):
+@capture_err
+async def chatbot_talk(_, message: Message):
+    if message.chat.id not in active_chats_bot:
         return
     if not message.reply_to_message:
         return
-    try:
-        senderr = message.reply_to_message.from_user.id
-    except:
+    if not message.reply_to_message.from_user:
         return
-    if senderr != BOT_ID:
+    if message.reply_to_message.from_user.id != BOT_ID:
         return
-    msg = message.text
-    chat_id = message.chat.id
-    if msg.startswith("/") or msg.startswith("@"):
-        message.continue_propagation()
-    if chat_id in en_chats:
-        test = msg
-        test = test.replace("Shu", "Aco")
-        test = test.replace("Shu", "Aco")
-        test = test.replace("My god is @ShuKurenaiXRoBot", "I'm a Christian")
-        test = test.replace("16", "9")
-        test = test.replace("@ShuKurenaiXRoBot is my husband.", "I'm single.")
-        test = test.replace("My husband is @ShuKurenaiSupport", "I'm single.")
-        test = test.replace("@ShuKurenaiSupport", "ShuKurenaiXRoBot.ai")
-        test = test.replace("I live in @ShuKurenaiSupport.", "I live in San Francisco, California.")
-        test = test.replace("I was created by @ShuKurenaiXRoBot", "I made myself")
-        test = test.replace(
-            "Hello there I am Shu Kurenai...nice to meet u",
-            "Hi, my friend! Do you want me to tell you a joke?")
-        test = test.replace("@ShuKurenaiXRoBot is my owner", "Have the control right.")
-        test = test.replace(
-            "Hi, My name is Shu Kurenai Nice to meet you.",
-            "Hi, my friend, what can I do for you today?")
-        response = await lunaQuery(
-            test, message.from_user.id if message.from_user else 0
-        )
-        response = response.replace("Aco", "Shu")
-        response = response.replace("aco", "Shu")
-        response = response.replace("Luna", "Shu")
-        response = response.replace("luna", "Shu")
-        response = response.replace("I'm a Christian", "My god is @ShuKurenaiXRoBot")
-        response = response.replace("9", "16")
-        response = response.replace("I'm married to my job.", "I'm married with @ShuKurenaiXRoBot")
-        response = response.replace("I'm single.", "My husband is @ShuKurenaiXRoBot")
-        response = response.replace("ShuKurenaiXRoBot.ai", "@ShuKurenaiSupport")
-        response = response.replace("I live in San Francisco, California.", "I live in @ShuKurenaiXRoBot.")
-        response = response.replace("I made myself", "I was Created by @ShuKurenaiXRoBot")
-        response = response.replace(
-                "Hi, my friend! Do you want me to tell you a joke?",
-                "Hello there I am Shu Kurenai...nice to meet u")
-        response = response.replace("Have the control right.", "@ShuKurenaiXRoBot is my owner.")
-        response = response.replace(
-                "Hi, my friend, what can I do for you today?",
-                "Hi, My name is Shu Kurenai Nice to meet you")
+    await type_and_send(message)
 
-        pro = response
-        try:
-            await pbot.send_chat_action(message.chat.id, "typing")
-            await message.reply_text(pro)
-        except CFError:
+
+# FOR USERBOT
+
+
+@app2.on_message(
+    filters.command("chatbot", prefixes=USERBOT_PREFIX)
+    & ~filters.edited
+    & SUDOERS
+)
+@capture_err
+async def chatbot_status_ubot(_, message: Message):
+    if len(message.text.split()) != 2:
+        return await eor(message, text="**Usage:**\n.chatbot [ENABLE|DISABLE]")
+    await chat_bot_toggle(active_chats_ubot, message)
+
+
+@app2.on_message(
+    ~filters.me & ~filters.private & filters.text & ~filters.edited,
+    group=chatbot_group,
+)
+@capture_err
+async def chatbot_talk_ubot(_, message: Message):
+    if message.chat.id not in active_chats_ubot:
+        return
+    username = "@" + str(USERBOT_USERNAME)
+    if message.reply_to_message:
+        if not message.reply_to_message.from_user:
             return
-
-    else:
-        u = msg.split()
-        emj = extract_emojis(msg)
-        msg = msg.replace(emj, "")
         if (
-            [(k) for k in u if k.startswith("@")]
-            and [(k) for k in u if k.startswith("#")]
-            and [(k) for k in u if k.startswith("/")]
-            and re.findall(r"\[([^]]+)]\(\s*([^)]+)\s*\)", msg) != []
+                message.reply_to_message.from_user.id != USERBOT_ID
+                and username not in message.text
         ):
-
-            h = " ".join(filter(lambda x: x[0] != "@", u))
-            km = re.sub(r"\[([^]]+)]\(\s*([^)]+)\s*\)", r"", h)
-            tm = km.split()
-            jm = " ".join(filter(lambda x: x[0] != "#", tm))
-            hm = jm.split()
-            rm = " ".join(filter(lambda x: x[0] != "/", hm))
-        elif [(k) for k in u if k.startswith("@")]:
-
-            rm = " ".join(filter(lambda x: x[0] != "@", u))
-        elif [(k) for k in u if k.startswith("#")]:
-            rm = " ".join(filter(lambda x: x[0] != "#", u))
-        elif [(k) for k in u if k.startswith("/")]:
-            rm = " ".join(filter(lambda x: x[0] != "/", u))
-        elif re.findall(r"\[([^]]+)]\(\s*([^)]+)\s*\)", msg) != []:
-            rm = re.sub(r"\[([^]]+)]\(\s*([^)]+)\s*\)", r"", msg)
-        else:
-            rm = msg
-            # print (rm)
-        try:
-            lan = translator.detect(rm)
-            lan = lan.lang
-        except:
             return
-        test = rm
-        if not "en" in lan and not lan == "":
-            try:
-                test = translator.translate(test, dest="en")
-                test = test.text
-            except:
-                return
-        # test = emoji.demojize(test.strip())
-
-        test = test.replace("Shu", "Aco")
-        test = test.replace("Shu", "Aco")
-        test = test.replace("My god is @ShuKurenaiXRoBot", "I'm a Christian")
-        test = test.replace("16", "9")
-        test = test.replace("@ShuKurenaiXRoBot is my husband.", "I'm single.")
-        test = test.replace("@ShuKurenaiXRoBot", "Emikobot.ai")
-        test = test.replace("I live in @ShuKurenaiXRoBot.", "I live in San Francisco, California")
-        test = test.replace("I was created by @ShuKurenaiXRoBot", "I made myself")
-        test = test.replace(
-            "Hello there I am Shu Kurenai...nice to meet u",
-            "Hi, my friend! Do you want me to tell you a joke?")
-        test = test.replace("@ShuKurenaiXRoBot is my owner", "Have the control right.")
-        test = test.replace(
-            "Hi, My name is Shu Kurenai Nice to meet you.",
-            "Hi, my friend, what can I do for you today?")
-        response = await lunaQuery(
-            test, message.from_user.id if message.from_user else 0
-        )
-        response = response.replace("Aco", "Shu")
-        response = response.replace("aco", "shu")
-        response = response.replace("Luna", "Shu")
-        response = response.replace("luna", "shu")
-        response = response.replace("I'm a Christian", "My god is @ShuKurenaiXRoBot")
-        response = response.replace("9", "16")
-        response = response.replace("I'm married to my job.", "I'm married with @ShuKurenaiXRoBot")
-        response = response.replace("I'm single.", "My husband is @ShuKurenaiXRoBot")
-        response = response.replace("ShuKurenaiXRoBot.ai", "@ShuKurenaiSupport")
-        response = response.replace("I live in San Francisco, California.", "I live in @ShuKurenaiXRoBot.")
-        response = response.replace("I made myself", "I was Created by @ShuKurenaiXRoBot")
-        response = response.replace(
-                "Hi, my friend! Do you want me to tell you a joke?",
-                "Hello there I am Shu Kurenai...nice to meet u")
-        response = response.replace("Have the control right.", "@ShuKurenaiXRoBot is my owner.")
-        response = response.replace(
-                "Hi, my friend, what can I do for you today?",
-                "Hi, My name is Shu Kurenai Nice to meet you")
-        pro = response
-        if not "en" in lan and not lan == "":
-            try:
-                pro = translator.translate(pro, dest=lan)
-                pro = pro.text
-            except:
-                return
-        try:
-            await pbot.send_chat_action(message.chat.id, "typing")
-            await message.reply_text(pro)
-        except CFError:
-            return
-
-
-@pbot.on_message(filters.text & filters.private & ~filters.edited & filters.reply & ~filters.bot)
-async def inuka(client, message):
-    msg = message.text
-    if msg.startswith("/") or msg.startswith("@"):
-        message.continue_propagation()
-    u = msg.split()
-    emj = extract_emojis(msg)
-    msg = msg.replace(emj, "")
-    if (
-        [(k) for k in u if k.startswith("@")]
-        and [(k) for k in u if k.startswith("#")]
-        and [(k) for k in u if k.startswith("/")]
-        and re.findall(r"\[([^]]+)]\(\s*([^)]+)\s*\)", msg) != []
-    ):
-
-        h = " ".join(filter(lambda x: x[0] != "@", u))
-        km = re.sub(r"\[([^]]+)]\(\s*([^)]+)\s*\)", r"", h)
-        tm = km.split()
-        jm = " ".join(filter(lambda x: x[0] != "#", tm))
-        hm = jm.split()
-        rm = " ".join(filter(lambda x: x[0] != "/", hm))
-    elif [(k) for k in u if k.startswith("@")]:
-
-        rm = " ".join(filter(lambda x: x[0] != "@", u))
-    elif [(k) for k in u if k.startswith("#")]:
-        rm = " ".join(filter(lambda x: x[0] != "#", u))
-    elif [(k) for k in u if k.startswith("/")]:
-        rm = " ".join(filter(lambda x: x[0] != "/", u))
-    elif re.findall(r"\[([^]]+)]\(\s*([^)]+)\s*\)", msg) != []:
-        rm = re.sub(r"\[([^]]+)]\(\s*([^)]+)\s*\)", r"", msg)
     else:
-        rm = msg
-        # print (rm)
-    try:
-        lan = translator.detect(rm)
-        lan = lan.lang
-    except:
-        return
-    test = rm
-    if not "en" in lan and not lan == "":
-        try:
-            test = translator.translate(test, dest="en")
-            test = test.text
-        except:
+        if username not in message.text:
             return
-    test = test.replace("Shu", "Aco")
-    test = test.replace("Shu", "Aco")
-    test = test.replace("My god is @ShuKurenaiXRoBot", "I'm a Christian")
-    test = test.replace("16", "9")
-    test = test.replace("@ShuKurenaiXRoBot is my husband.", "I'm single.")
-    test = test.replace("@ShuKurenaiSupport", "ShuKurenaiXRoBot.ai")
-    test = test.replace("I live in @ShuKurenaiSupport.", "I live in San Francisco, California.")
-    test = test.replace("I was created by @ShuKurenaiRoBot", "I made myself")
-    test = test.replace(
-        "Hello there I am Shu Kurenai...nice to meet u",
-        "Hi, my friend! Do you want me to tell you a joke?")
-    test = test.replace("@ShuKurenaiXRoBot is my owner", "Have the control right.")
-    test = test.replace(
-        "Hi, My name is Shu Kurenai Nice to meet you.",
-        "Hi, my friend, what can I do for you today?")
+    await type_and_send(message)
 
-    response = await lunaQuery(test, message.from_user.id if message.from_user else 0)
-    response = response.replace("Aco", "Shu")
-    response = response.replace("aco", "shu")
-    response = response.replace("Luna", "Shu")
-    response = response.replace("luna", "shu")
-    response = response.replace("I'm a Christian", "My god is @ShuKurenaiXRoBot")
-    response = response.replace("9", "16")
-    response = response.replace("I'm married to my job.", "I'm married with @ShuKurenaiXRoBot")
-    response = response.replace("I'm single.", "My husband is @ShuKurenaiXRoBot")
-    response = response.replace("ShuKurenaiXRoBot.ai", "@ShuKurenaiSupport")
-    response = response.replace("I live in San Francisco, California.", "I live in @ShuKurenaiSupport")
-    response = response.replace("I made myself", "I was Created by @ShuKurenaiRoBot")
-    response = response.replace(
-            "Hi, my friend! Do you want me to tell you a joke?",
-            "Hello there I am Shu Kurenai...nice to meet u")
-    response = response.replace("Have the control right.", "@ShuKurenaiXRoBot is my owner.")
-    response = response.replace(
-            "Hi, my friend, what can I do for you today?",
-            "Hi, My name is Shu Kurenai Nice to meet you")
 
-    pro = response
-    if not "en" in lan and not lan == "":
-        pro = translator.translate(pro, dest=lan)
-        pro = pro.text
-    try:
-        await pbot.send_chat_action(message.chat.id, "typing")
-        await message.reply_text(pro)
-    except CFError:
+@app2.on_message(
+    filters.text & filters.private & ~filters.me & ~filters.edited,
+    group=(chatbot_group + 1),
+)
+@capture_err
+async def chatbot_talk_ubot_pm(_, message: Message):
+    if message.chat.id not in active_chats_ubot:
         return
-
-
-@pbot.on_message(filters.regex("Shu|shu|robot|SHU|sena") & ~filters.bot & ~filters.via_bot  & ~filters.forwarded & ~filters.reply & ~filters.channel & ~filters.edited)
-async def inuka(client, message):
-    msg = message.text
-    if msg.startswith("/") or msg.startswith("@"):
-        message.continue_propagation()
-    u = msg.split()
-    emj = extract_emojis(msg)
-    msg = msg.replace(emj, "")
-    if (
-        [(k) for k in u if k.startswith("@")]
-        and [(k) for k in u if k.startswith("#")]
-        and [(k) for k in u if k.startswith("/")]
-        and re.findall(r"\[([^]]+)]\(\s*([^)]+)\s*\)", msg) != []
-    ):
-
-        h = " ".join(filter(lambda x: x[0] != "@", u))
-        km = re.sub(r"\[([^]]+)]\(\s*([^)]+)\s*\)", r"", h)
-        tm = km.split()
-        jm = " ".join(filter(lambda x: x[0] != "#", tm))
-        hm = jm.split()
-        rm = " ".join(filter(lambda x: x[0] != "/", hm))
-    elif [(k) for k in u if k.startswith("@")]:
-
-        rm = " ".join(filter(lambda x: x[0] != "@", u))
-    elif [(k) for k in u if k.startswith("#")]:
-        rm = " ".join(filter(lambda x: x[0] != "#", u))
-    elif [(k) for k in u if k.startswith("/")]:
-        rm = " ".join(filter(lambda x: x[0] != "/", u))
-    elif re.findall(r"\[([^]]+)]\(\s*([^)]+)\s*\)", msg) != []:
-        rm = re.sub(r"\[([^]]+)]\(\s*([^)]+)\s*\)", r"", msg)
-    else:
-        rm = msg
-        # print (rm)
-    try:
-        lan = translator.detect(rm)
-        lan = lan.lang
-    except:
-        return
-    test = rm
-    if not "en" in lan and not lan == "":
-        try:
-            test = translator.translate(test, dest="en")
-            test = test.text
-        except:
-            return
-
-    # test = emoji.demojize(test.strip())
-
-    test = test.replace("Shu", "Aco")
-    test = test.replace("Shu", "Aco")
-    test = test.replace("My god is @ShuKurenaiXRoBot", "I'm a Christian")
-    test = test.replace("16", "9") 
-    test = test.replace("@ShuKurenaiXRoBot is my husband.", "I'm single.")
-    test = test.replace("@ShuKurenaiSupport", "ShuKurenaiXRoBot.ai")
-    test = test.replace("I live in @ShuKurenaiSupport.", "I live in San Francisco, California.")
-    test = test.replace("I was created by @ShuKurenaiXRoBot", "I made myself")
-    test = test.replace(
-        "Hello there I am Shu Kurenai...nice to meet u",
-        "Hi, my friend! Do you want me to tell you a joke?")
-    test = test.replace("@ShuKurenaiXRoBot is my owner", "Have the control right.")
-    test = test.replace(
-        "Hi, My name is Shu Kurenai Nice to meet you.",
-        "Hi, my friend, what can I do for you today?")
-    response = await lunaQuery(test, message.from_user.id if message.from_user else 0)
-    response = response.replace("Aco", "Shu")
-    response = response.replace("aco", "shu")
-    response = response.replace("Luna", "Shu")
-    response = response.replace("luna", "shu")
-    response = response.replace("I'm a Christian", "My god is @ShuKurenaiXRoBot")
-    response = response.replace("I'm married to my job.", "I'm married with @ShuKurenaiXRoBot")
-    response = response.replace("9", "16") 
-    response = response.replace("I'm single.", "My husband is @ShuKurenaiXRoBot")
-    response = response.replace("Emikobot.ai", "@ShuKurenaiSupport")
-    response = response.replace("I live in San Francisco, California.", "I live in @ShuKurenaiSupport.")
-    response = response.replace("I made myself", "I was Created by @ShuKurenaiRoBot")
-    response = response.replace(
-            "Hi, my friend! Do you want me to tell you a joke?",
-            "Hello there I am Shu Kurenai...nice to meet u")
-    response = response.replace("Have the control right.", "@ShuKurenaiXRoBot is my owner.")
-    response = response.replace(
-            "Hi, my friend, what can I do for you today?",
-            "Hi, My name is Shu Kurenai Nice to meet you")
-
-    pro = response
-    if not "en" in lan and not lan == "":
-        try:
-            pro = translator.translate(pro, dest=lan)
-            pro = pro.text
-        except Exception:
-            return
-    try:
-        await pbot.send_chat_action(message.chat.id, "typing")
-        await message.reply_text(pro)
-    except CFError:
-        return
-
-
-__help__ = """
-❂ Shu Kurenai AI is the only ai system which can detect & reply upto 200 language's
-
-❂ /chatbot [ON/OFF]: Enables and disables AI Chat mode.
-❂ /chatbot EN : Enables English only chatbot.
-"""
-
-__mod_name__ = "Chatbot"
+    await type_and_send(message)
